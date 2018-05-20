@@ -124,3 +124,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# 币安 API_KEY、API_SECRET 启动时必须存在
+API_KEY = os.environ['API_KEY']
+API_SECRET = os.environ['API_SECRET']
