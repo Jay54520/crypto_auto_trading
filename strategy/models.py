@@ -8,6 +8,8 @@ class Symbol(models.Model):
     base_asset = models.CharField(max_length=15)
     quote_asset = models.CharField(max_length=15)
     min_qty = models.DecimalField(max_digits=14, decimal_places=8)
+    min_price = models.DecimalField(max_digits=14, decimal_places=8)
+    min_notional = models.DecimalField(max_digits=14, decimal_places=8)
     step_size = models.DecimalField(max_digits=14, decimal_places=8)
 
 

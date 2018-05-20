@@ -15,13 +15,17 @@ def update_symbol_info():
     info = client.get_exchange_info()
     symbol_info_list = info['symbols']
     for symbol_info in symbol_info_list:
+        min_price = symbol_info['filters'][0]['minPrice']
         min_qty = symbol_info['filters'][1]['minQty']
         step_size = symbol_info['filters'][1]['stepSize']
+        min_notional = symbol_info['filters'][2]['minNotional']
         Symbol.objects.update_or_create(
             defaults={
                 'base_asset': symbol_info['baseAsset'],
                 'quote_asset': symbol_info['quoteAsset'],
                 'min_qty': min_qty,
+                'min_price': min_price,
+                'min_notional': min_notional,
                 'step_size': step_size,
             },
             name=symbol_info['symbol']
