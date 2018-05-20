@@ -10,3 +10,7 @@
 API_KEY='API Key'
 API_SECRET='Secret Key'
 ```
+
+### 定时任务
+
+* 每天运行 `python manage.py update_symbol_info` 来更新 symbol 信息
