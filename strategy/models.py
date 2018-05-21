@@ -18,3 +18,13 @@ class Strategy(models.Model):
     quantity = models.DecimalField(max_digits=14, decimal_places=8)
     start_dt = models.DateTimeField()
     end_dt = models.DateTimeField()
+
+
+class Order(models.Model):
+    strategy = models.ForeignKey(Strategy, on_delete=models.CASCADE)
+    time = models.DateTimeField()
+    quantity = models.DecimalField(max_digits=14, decimal_places=8)
+    price = models.DecimalField(max_digits=14, decimal_places=8)
+    is_valid = models.BooleanField()
+    status = models.CharField(max_length=15, help_text="交易平台返回的状态")
+    message = models.CharField(max_length=255)
