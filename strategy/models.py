@@ -2,6 +2,8 @@ from django.db import models
 
 
 # Create your models here.
+from crypto_auto_trading import constants
+
 
 class Symbol(models.Model):
     name = models.CharField(max_length=30)
@@ -15,6 +17,7 @@ class Symbol(models.Model):
 
 class Strategy(models.Model):
     symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
+    side = models.CharField(max_length=10, choices=constants.SIDE_CHOICES)
     quantity = models.DecimalField(max_digits=14, decimal_places=8)
     start_dt = models.DateTimeField()
     end_dt = models.DateTimeField()
