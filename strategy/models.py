@@ -1,6 +1,5 @@
 from django.db import models
 
-
 # Create your models here.
 from crypto_auto_trading import constants
 
@@ -14,6 +13,9 @@ class Symbol(models.Model):
     min_notional = models.DecimalField(max_digits=14, decimal_places=8)
     step_size = models.DecimalField(max_digits=14, decimal_places=8)
 
+    def __str__(self):
+        return self.name
+
 
 class Strategy(models.Model):
     symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
@@ -21,6 +23,9 @@ class Strategy(models.Model):
     quantity = models.DecimalField(max_digits=14, decimal_places=8)
     start_dt = models.DateTimeField()
     end_dt = models.DateTimeField()
+
+    def __str__(self):
+        return '{}-{}'.format(self.side, self.symbol)
 
 
 class Order(models.Model):
@@ -31,3 +36,6 @@ class Order(models.Model):
     is_valid = models.BooleanField()
     status = models.CharField(max_length=15, help_text="交易平台返回的状态", null=True)
     message = models.CharField(max_length=255, null=True)
+
+    def __str__(self):
+        return self.strategy

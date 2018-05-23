@@ -30,3 +30,11 @@ def update_symbol_info():
             },
             name=symbol_info['symbol']
         )
+
+
+def get_model_field_names(model, is_relation=False):
+    field_names = []
+    for field in model._meta.get_fields():
+        if field.is_relation == is_relation:
+            field_names.append(field.name)
+    return field_names
