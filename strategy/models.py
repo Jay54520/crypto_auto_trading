@@ -25,7 +25,7 @@ class Strategy(models.Model):
     end_dt = models.DateTimeField()
 
     def __str__(self):
-        return '{}-{}'.format(self.side, self.symbol)
+        return '{}-{}'.format(self.side, self.symbol.name)
 
 
 class Order(models.Model):
@@ -38,4 +38,4 @@ class Order(models.Model):
     message = models.CharField(max_length=255, null=True)
 
     def __str__(self):
-        return self.strategy
+        return str(self.strategy)
