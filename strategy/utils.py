@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+import datetime
+import decimal
+import typing
 from binance.client import Client
 from django.conf import settings
 
-from strategy.models import Symbol
+from crypto_auto_trading import constants
+from strategy.models import Symbol, Strategy
 
 client = Client(settings.API_KEY, settings.API_SECRET)
 
@@ -38,3 +42,59 @@ def get_model_field_names(model, is_relation=False):
         if field.is_relation == is_relation:
             field_names.append(field.name)
     return field_names
+
+
+def get_price(symbol, side) -> decimal.Decimal:
+    """获取价格
+    目前的策略是买入价格为最高买价，卖出价格为最低卖价。相对于买入价格为最低卖价，成交率一定会较低，如果能成交，成本会减小
+    """
+    price_info = client.get_orderbook_ticker(symbol=symbol)
+    if side == constants.BUY:
+        price = price_info['bidPrice']
+    else:
+        price = price_info['askPrice']
+    return decimal.Decimal(price)
+
+
+def generate_dts(start_dt: datetime.datetime, end_dt: datetime.datetime, delta: datetime.timedelta) -> typing.List[
+        datetime.datetime]:
+    """生成从开始时间大于等于 start_dt，结束时间小于等于 end_dt，间隔为 delta 的时间列表"""
+    dt = start_dt
+    dts = []
+    while dt <= end_dt:
+        dts.append(dt)
+        dt += delta
+    return dts
+
+
+def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: Strategy=None):
+    """返回创建  order 的必须数据，order 分布到 start_dt, end_dt 中
+    strategy 参数不参与逻辑，只是用作创建  order
+    """
+    orders = []
+
+    order_price = get_price(symbol.name, side)
+    min_quantity = symbol.min_notional / order_price
+    if min_quantity > quantity:
+        raise ValueError('最小数量 {} 大于策略数量 {}'.format(min_quantity, quantity))
+
+    max_order_times = int(quantity // min_quantity)
+    remaining_quantity = quantity - min_quantity * max_order_times
+    order_time_delta = (end_dt - start_dt) / max_order_times
+    dts = generate_dts(start_dt, end_dt, order_time_delta)
+    for dt in dts:
+        if dt == end_dt:
+            # 将剩余数量加到最后一次交易中。不加到前面的原因是前面可能低于最小限制，因此可作为补充
+            order_quantity = min_quantity + remaining_quantity
+        else:
+            order_quantity = min_quantity
+        order = {
+            'time': dt,
+            'quantity': order_quantity,
+            'is_valid': True
+        }
+        if strategy:
+            order['strategy'] = strategy
+        orders.append(order)
+        dt += order_time_delta
+    return orders
