@@ -21,6 +21,7 @@ class Strategy(models.Model):
     symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE)
     side = models.CharField(max_length=10, choices=constants.SIDE_CHOICES)
     quantity = models.DecimalField(max_digits=14, decimal_places=8)
+    base_price = models.DecimalField(max_digits=14, decimal_places=8, help_text='买入时的最高价或卖出时的最低价')
     start_dt = models.DateTimeField()
     end_dt = models.DateTimeField()
 
