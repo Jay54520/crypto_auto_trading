@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import time
+
 import datetime
 import decimal
 import typing
@@ -6,7 +8,7 @@ from binance.client import Client
 from django.conf import settings
 
 from crypto_auto_trading import constants
-from strategy.models import Symbol, Strategy
+from strategy.models import Symbol, Strategy, Order
 
 client = Client(settings.API_KEY, settings.API_SECRET)
 
@@ -57,7 +59,7 @@ def get_price(symbol, side) -> decimal.Decimal:
 
 
 def generate_dts(start_dt: datetime.datetime, end_dt: datetime.datetime, delta: datetime.timedelta) -> typing.List[
-        datetime.datetime]:
+    datetime.datetime]:
     """生成从开始时间大于等于 start_dt，结束时间小于等于 end_dt，间隔为 delta 的时间列表"""
     dt = start_dt
     dts = []
@@ -67,14 +69,39 @@ def generate_dts(start_dt: datetime.datetime, end_dt: datetime.datetime, delta: 
     return dts
 
 
-def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: Strategy=None):
+def round_to_template(num: decimal.Decimal, example: decimal.Decimal) -> decimal.Decimal:
+    """
+    将 num 四舍五入到 example 所在的位数
+    :param num:
+    :param example: 必须含有 1，比如 decimal.Decimal('0.01')、decimal.Decimal('0.000001000')
+    :return:
+    """
+    example = str(example)
+    if '1' not in example:
+        raise ValueError('example 必须包含 1')
+    return round(num, example.index('1') - 1)
+
+
+def format_quantity(quantity, step_size):
+    """根据 step_size 格式化 quantity，使满足 (quantity-minQty) % stepSize == 0"""
+    # + symbol.step_size 的原因是防止四舍五入后变小了
+    return round_to_template(quantity, step_size) + step_size
+
+
+def get_min_quantity(symbol: Symbol, side, price=None) -> decimal.Decimal:
+    """获取能够交易的最低数量"""
+    order_price = price or get_price(symbol.name, side)
+    min_quantity = symbol.min_notional / order_price
+    min_quantity = format_quantity(min_quantity, symbol.step_size)
+    return min_quantity
+
+
+def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: Strategy = None):
     """返回创建  order 的必须数据，order 分布到 start_dt, end_dt 中
     strategy 参数不参与逻辑，只是用作创建  order
     """
     orders = []
-
-    order_price = get_price(symbol.name, side)
-    min_quantity = symbol.min_notional / order_price
+    min_quantity = get_min_quantity(symbol, side)
     if min_quantity > quantity:
         raise ValueError('最小数量 {} 大于策略数量 {}'.format(min_quantity, quantity))
 
@@ -98,3 +125,27 @@ def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: 
         orders.append(order)
         dt += order_time_delta
     return orders
+
+
+def place_test_order(order: Order):
+    """下单"""
+    strategy = order.strategy
+    price = get_price(strategy.symbol.name, strategy.side)
+    min_quantity = get_min_quantity(strategy.symbol, strategy.side, price)
+    quantity = order.quantity
+    # 因为订单是预估的，所以实际下单时可能会低于最小数量
+    if quantity < min_quantity:
+        quantity = min_quantity
+        order.quantity = quantity
+        order.save()
+
+    result = client.create_test_order(
+        symbol=strategy.symbol.name,
+        side=strategy.side,
+        type=constants.TYPE_LIMIT,
+        timeInForce=constants.GTC,
+        quantity=order.quantity,
+        price=price,
+        timestamp=int(time.time())
+    )
+    return result
