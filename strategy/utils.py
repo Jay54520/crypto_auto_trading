@@ -207,24 +207,29 @@ def place_order(order: Order):
     # 因为订单是预估的，所以实际下单时可能会低于最小数量
     if quantity < min_quantity:
         quantity = min_quantity
-        order.quantity = quantity
-        order.save()
-    quantity = str(round_to_template(order.quantity, strategy.symbol.min_qty)),
-    price = str(price)
-    result = client.place(
-        account_id=client.account_id,
-        amount=quantity,
-        price=price,
-        source='api',
-        symbol=strategy.symbol.name,
-        type=strategy.side
-    ).data
-    if result['status'] == 'ok':
-        order.quantity=quantity
-        order.price=price
-        order.status = 'submitted'
-        order.order_id = result['data']
-        order.save()
-    else:
-        print('order_id: {}, result: {}'.format(order.id, result))
 
+    # 调整精度并转换为字符串以符合火币要求
+    quantity = str(round_to_template(order.quantity, strategy.symbol.min_qty))
+    # 上面调整过了精度，所以只需要转换为字符串
+    price = str(price)
+    try:
+        result = client.place(
+            account_id=client.account_id,
+            amount=quantity,
+            price=price,
+            source='api',
+            symbol=strategy.symbol.name,
+            type=strategy.side
+        ).data
+    except Exception as e:
+        order.message = str(e)[:255]
+    else:
+        if result['status'] == 'ok':
+            order.quantity = quantity
+            order.price = price
+            order.status = 'submitted'
+            order.order_id = result['data']
+        else:
+            order.message = str(result)[:255]
+    finally:
+        order.save()
