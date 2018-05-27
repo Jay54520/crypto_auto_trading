@@ -36,6 +36,7 @@ class Order(models.Model):
     price = models.DecimalField(max_digits=14, decimal_places=8, null=True)
     is_valid = models.BooleanField()
     status = models.CharField(max_length=15, help_text="交易平台返回的状态", null=True)
+    order_id = models.CharField(max_length=255, null=True)
     message = models.CharField(max_length=255, null=True)
 
     def __str__(self):

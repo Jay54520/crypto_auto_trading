@@ -5,7 +5,7 @@ from strategy.utils import update_symbol_info
 
 
 class Command(BaseCommand):
-    help = '更新币安 symbol 信息到 Symbol model'
+    help = '更新火币 symbol 信息到 Symbol model'
 
     def handle(self, *args, **options):
         update_symbol_info()

@@ -125,6 +125,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-# 币安 API_KEY、API_SECRET 启动时必须存在
+# 火币 API_KEY、API_SECRET 启动时必须存在
 API_KEY = os.environ['API_KEY']
 API_SECRET = os.environ['API_SECRET']

@@ -6,7 +6,7 @@ from unittest import mock
 
 from crypto_auto_trading import constants
 from strategy.models import Symbol
-from strategy.utils import generate_orders
+from strategy.utils import generate_orders, get_min_quantity
 
 
 class TestGenerateOrders(TestCase):
@@ -25,26 +25,25 @@ class TestGenerateOrders(TestCase):
     @mock.patch('strategy.utils.get_price', return_value=decimal.Decimal(0.62))
     def test_not_enough_qty(self, get_price):
         with self.assertRaises(ValueError):
-            generate_orders(self.symbol, constants.BUY, 10, datetime.datetime(2018, 1, 1),
-                            datetime.datetime(2018, 1, 2))
+            generate_orders(self.symbol, self.symbol.min_qty / 10, datetime.datetime(2018, 1, 1, 1),
+                            datetime.datetime(2018, 1, 1, 2))
 
     @mock.patch('strategy.utils.get_price', return_value=decimal.Decimal(0.62))
     def test_success(self, get_price):
-        orders = generate_orders(self.symbol, constants.BUY, 100, datetime.datetime(2018, 1, 1),
-                                 datetime.datetime(2018, 1, 2))
-        self.assertEqual([{'time': datetime.datetime(2018, 1, 1, 0, 0),
-                           'quantity': decimal.Decimal('16.12903225806451624456014824'), 'is_valid': True},
-                          {'time': datetime.datetime(2018, 1, 1, 4, 0),
-                           'quantity': decimal.Decimal('16.12903225806451624456014824'), 'is_valid': True},
-                          {'time': datetime.datetime(2018, 1, 1, 8, 0),
-                           'quantity': decimal.Decimal('16.12903225806451624456014824'), 'is_valid': True},
-                          {'time': datetime.datetime(2018, 1, 1, 12, 0),
-                           'quantity': decimal.Decimal('16.12903225806451624456014824'), 'is_valid': True},
-                          {'time': datetime.datetime(2018, 1, 1, 16, 0),
-                           'quantity': decimal.Decimal('16.12903225806451624456014824'), 'is_valid': True},
-                          {'time': datetime.datetime(2018, 1, 1, 20, 0),
-                           'quantity': decimal.Decimal('16.12903225806451624456014824'), 'is_valid': True},
-                          {'time': datetime.datetime(2018, 1, 2, 0, 0),
-                           'quantity': decimal.Decimal('19.35483870967741877719925880'), 'is_valid': True}],
+        orders = generate_orders(self.symbol,
+                                 get_min_quantity(self.symbol) * 10,
+                                 datetime.datetime(2018, 1, 1, 1),
+                                 datetime.datetime(2018, 1, 1, 2))
+        self.assertEqual([{'time': datetime.datetime(2018, 1, 1, 1, 0), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 6), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 12), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 18), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 24), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 30), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 36), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 42), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 48), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 1, 54), 'quantity': 0.01, 'is_valid': True},
+                          {'time': datetime.datetime(2018, 1, 1, 2, 0), 'quantity': 0.01, 'is_valid': True}],
                          orders
                          )

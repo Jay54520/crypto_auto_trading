@@ -4,37 +4,68 @@ import time
 import datetime
 import decimal
 import typing
-from binance.client import Client
+from huobi import HuobiRestClient
 from django.conf import settings
 
 from crypto_auto_trading import constants
 from strategy.models import Symbol, Strategy, Order
 
-client = Client(settings.API_KEY, settings.API_SECRET)
+client = HuobiRestClient(settings.API_KEY, settings.API_SECRET)
+
+
+def get_spot_account_id() -> int:
+    accounts = client.accounts().data['data']
+    for account in accounts:
+        if not account['type'] == 'spot':
+            continue
+        return account['id']
+    raise Exception('没有找到 spot account id')
+
+
+client.account_id = get_spot_account_id()
+
+
+def get_min_qty(symbol: str) -> decimal.Decimal:
+    """获取火币中 symbol 对应的最小交易数量。目前人工处理。"""
+    min_qty_dict = {
+        'xrpusdt': decimal.Decimal(1)
+    }
+    return min_qty_dict[symbol]
+
+
+def get_num_from_precision(precision: int) -> decimal.Decimal:
+    if precision < 0:
+        raise ValueError('precision 不能小于 0')
+    return decimal.Decimal('1e{}'.format(-precision))
 
 
 def update_symbol_info():
     """
-    更新币安 symbol 信息到 Symbol model
+    更新火币 symbol 信息到 Symbol model
     :return:
     """
-    info = client.get_exchange_info()
-    symbol_info_list = info['symbols']
+    info = client.symbols().data
+    symbol_info_list = info['data']
     for symbol_info in symbol_info_list:
-        min_price = symbol_info['filters'][0]['minPrice']
-        min_qty = symbol_info['filters'][1]['minQty']
-        step_size = symbol_info['filters'][1]['stepSize']
-        min_notional = symbol_info['filters'][2]['minNotional']
+        name = symbol_info['base-currency'] + symbol_info['quote-currency']
+        try:
+            min_qty = get_min_qty(name)
+        except KeyError:
+            continue
+        min_price = get_num_from_precision(precision=symbol_info['price-precision'])
+        step_size = get_num_from_precision(precision=symbol_info['amount-precision'])
+        min_notional = min_price * min_qty
+
         Symbol.objects.update_or_create(
             defaults={
-                'base_asset': symbol_info['baseAsset'],
-                'quote_asset': symbol_info['quoteAsset'],
+                'base_asset': symbol_info['base-currency'],
+                'quote_asset': symbol_info['quote-currency'],
                 'min_qty': min_qty,
                 'min_price': min_price,
                 'min_notional': min_notional,
                 'step_size': step_size,
             },
-            name=symbol_info['symbol']
+            name=name
         )
 
 
@@ -46,16 +77,16 @@ def get_model_field_names(model, is_relation=False):
     return field_names
 
 
-def get_price(symbol, side) -> decimal.Decimal:
+def get_price(symbol: Symbol, side) -> decimal.Decimal:
     """获取价格
     目前的策略是买入价格为最高买价，卖出价格为最低卖价。相对于买入价格为最低卖价，成交率一定会较低，如果能成交，成本会减小
     """
-    price_info = client.get_orderbook_ticker(symbol=symbol)
+    price_info = client.market_depth(symbol=symbol.name).data
     if side == constants.BUY:
-        price = price_info['bidPrice']
+        price = decimal.Decimal(price_info['tick']['bids'][0][0])
     else:
-        price = price_info['askPrice']
-    return decimal.Decimal(price)
+        price = decimal.Decimal(price_info['tick']['asks'][0][0])
+    return round_to_template(price, symbol.min_price)
 
 
 def generate_dts(start_dt: datetime.datetime, end_dt: datetime.datetime, delta: datetime.timedelta) -> typing.List[
@@ -79,7 +110,13 @@ def round_to_template(num: decimal.Decimal, example: decimal.Decimal) -> decimal
     example = str(example)
     if '1' not in example:
         raise ValueError('example 必须包含 1')
-    return round(num, example.index('1') - 1)
+    index = example.index('1')
+    if index == 0:
+        ndigits = 0
+    else:
+        # 减一的原因是存在小数点
+        ndigits = index - 1
+    return round(num, ndigits)
 
 
 def format_quantity(quantity, step_size):
@@ -88,20 +125,17 @@ def format_quantity(quantity, step_size):
     return round_to_template(quantity, step_size) + step_size
 
 
-def get_min_quantity(symbol: Symbol, side, price=None) -> decimal.Decimal:
+def get_min_quantity(symbol: Symbol) -> decimal.Decimal:
     """获取能够交易的最低数量"""
-    order_price = price or get_price(symbol.name, side)
-    min_quantity = symbol.min_notional / order_price
-    min_quantity = format_quantity(min_quantity, symbol.step_size)
-    return min_quantity
+    return round_to_template(symbol.min_qty, symbol.min_qty)
 
 
-def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: Strategy = None):
+def generate_orders(symbol: Symbol, quantity, start_dt, end_dt, strategy: Strategy = None):
     """返回创建  order 的必须数据，order 分布到 start_dt, end_dt 中
     strategy 参数不参与逻辑，只是用作创建  order
     """
     orders = []
-    min_quantity = get_min_quantity(symbol, side)
+    min_quantity = get_min_quantity(symbol)
     if min_quantity > quantity:
         raise ValueError('最小数量 {} 大于策略数量 {}'.format(min_quantity, quantity))
 
@@ -115,6 +149,7 @@ def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: 
             order_quantity = min_quantity + remaining_quantity
         else:
             order_quantity = min_quantity
+        order_quantity = round_to_template(order_quantity, symbol.min_qty)
         order = {
             'time': dt,
             'quantity': order_quantity,
@@ -127,11 +162,11 @@ def generate_orders(symbol: Symbol, side, quantity, start_dt, end_dt, strategy: 
     return orders
 
 
-def place_test_order(order: Order):
+def place_order(order: Order):
     """下单"""
     strategy = order.strategy
-    price = get_price(strategy.symbol.name, strategy.side)
-    min_quantity = get_min_quantity(strategy.symbol, strategy.side, price)
+    price = get_price(strategy.symbol, strategy.side)
+    min_quantity = get_min_quantity(strategy.symbol)
     quantity = order.quantity
     # 因为订单是预估的，所以实际下单时可能会低于最小数量
     if quantity < min_quantity:
@@ -139,13 +174,12 @@ def place_test_order(order: Order):
         order.quantity = quantity
         order.save()
 
-    result = client.create_test_order(
+    result = client.place(
+        account_id=client.account_id,
+        amount=str(round_to_template(order.quantity, strategy.symbol.min_qty)),
+        price=price.to_eng_string(),
+        source='api',
         symbol=strategy.symbol.name,
-        side=strategy.side,
-        type=constants.TYPE_LIMIT,
-        timeInForce=constants.GTC,
-        quantity=order.quantity,
-        price=price,
-        timestamp=int(time.time())
-    )
+        type=strategy.side
+    ).data
     return result

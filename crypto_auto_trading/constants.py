@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-BUY = 'BUY'
-SELL = 'SELL'
+BUY = 'buy-limit'
+SELL = 'sell-limit'
 SIDE_CHOICES = (
     (BUY, BUY),
     (SELL, SELL)
