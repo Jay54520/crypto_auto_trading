@@ -209,13 +209,22 @@ def place_order(order: Order):
         quantity = min_quantity
         order.quantity = quantity
         order.save()
-
+    quantity = str(round_to_template(order.quantity, strategy.symbol.min_qty)),
+    price = str(price)
     result = client.place(
         account_id=client.account_id,
-        amount=str(round_to_template(order.quantity, strategy.symbol.min_qty)),
-        price=price.to_eng_string(),
+        amount=quantity,
+        price=price,
         source='api',
         symbol=strategy.symbol.name,
         type=strategy.side
     ).data
-    return result
+    if result['status'] == 'ok':
+        order.quantity=quantity
+        order.price=price
+        order.status = 'submitted'
+        order.order_id = result['data']
+        order.save()
+    else:
+        print('order_id: {}, result: {}'.format(order.id, result))
+
