@@ -26,9 +26,45 @@ client.account_id = get_spot_account_id()
 
 
 def get_min_qty(symbol: str) -> decimal.Decimal:
-    """获取火币中 symbol 对应的最小交易数量。目前人工处理。"""
+    """获取火币中 symbol 对应的最小交易数量。目前人工处理。
+    API 中没有提供，可从 https://huobiglobal.zendesk.com/hc/zh-cn/articles/360000076392-%E4%BA%A4%E6%98%93%E9%99%90%E9%A2%9D
+    获取
+    由于交易对添加的很慢，所以手动处理就行
+    """
     min_qty_dict = {
-        'xrpusdt': decimal.Decimal(1)
+        'btcusdt': decimal.Decimal('0.001'),
+        'bchusdt': decimal.Decimal('0.001'),
+        'cvcusdt': decimal.Decimal('0.1'),
+        'dtausdt': decimal.Decimal('1'),
+        'dashusdt': decimal.Decimal('0.001'),
+        'ethusdt': decimal.Decimal('0.001'),
+        'etcusdt': decimal.Decimal('0.01'),
+        'eosusdt': decimal.Decimal('0.01'),
+        'elfusdt': decimal.Decimal('0.1'),
+        'elausdt': decimal.Decimal('0.001'),
+        'gntusdt': decimal.Decimal('0.1'),
+        'htusdt': decimal.Decimal('0.1'),
+        'hsrusdt': decimal.Decimal('0.01'),
+        'itcusdt': decimal.Decimal('0.01'),
+        'iostusdt': decimal.Decimal('1'),
+        'letusdt': decimal.Decimal('1'),
+        'ltcusdt': decimal.Decimal('0.001'),
+        'mdsusdt': decimal.Decimal('0.1'),
+        'neousdt': decimal.Decimal('0.001'),
+        'nasusdt': decimal.Decimal('0.01'),
+        'omgusdt': decimal.Decimal('0.01'),
+        'qtumusdt': decimal.Decimal('0.01'),
+        'ruffusdt': decimal.Decimal('1'),
+        'sntusdt': decimal.Decimal('0.1'),
+        'storjusdt': decimal.Decimal('0.01'),
+        'smtusdt': decimal.Decimal('1'),
+        'trxusdt': decimal.Decimal('1'),
+        'thetausdt': decimal.Decimal('0.1'),
+        'venusdt': decimal.Decimal('0.1'),
+        'xrpusdt': decimal.Decimal('1'),
+        'xemusdt': decimal.Decimal('0.1'),
+        'zecusdt': decimal.Decimal('0.001'),
+        'zilusdt': decimal.Decimal('1'),
     }
     return min_qty_dict[symbol]
 
