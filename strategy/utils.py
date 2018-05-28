@@ -203,6 +203,12 @@ def place_order(order: Order):
     """下单"""
     strategy = order.strategy
     price = get_price(strategy.symbol, strategy.side)
+    try:
+        order.check_price(price)
+    except ValueError as e:
+        order.message = e
+        order.save()
+        return
 
     # 调整精度并转换为字符串以符合火币要求
     quantity = str(round_to_template(order.quantity, strategy.symbol.min_qty))

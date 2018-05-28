@@ -41,3 +41,11 @@ class Order(models.Model):
 
     def __str__(self):
         return str(self.strategy)
+
+    def check_price(self, price):
+        """买入时不能高于 base_price，卖出时不能低于 base_price"""
+        strategy = self.strategy
+        if strategy.side == constants.BUY and price > strategy.base_price:
+            raise ValueError('order.id: {} 买入价格：{} 高于 base_price: {}'.format(self.id, price, strategy.base_price))
+        elif strategy.side == constants.SELL and price < strategy.base_price:
+            raise ValueError('order.id: {} 卖出价格: {} 低于 base_price: {}'.format(self.id, price, strategy.base_price))
