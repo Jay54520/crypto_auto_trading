@@ -18,3 +18,6 @@ class TestUtils(TestCase):
 
         result = round_to_template(decimal.Decimal('16.584000000'), decimal.Decimal('0.01'))
         self.assertEqual(decimal.Decimal('16.58'), result)
+
+        result = round_to_template(decimal.Decimal('16.584000000'), decimal.Decimal('1'))
+        self.assertEqual(decimal.Decimal('17'), result)

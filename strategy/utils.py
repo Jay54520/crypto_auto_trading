@@ -26,10 +26,10 @@ client.account_id = get_spot_account_id()
 
 
 def get_min_qty(symbol: str) -> decimal.Decimal:
-    """获取火币中 symbol 对应的最小交易数量。目前人工处理。
+    """获取火币中 symbol 对应的最小交易数量。
     API 中没有提供，可从 https://huobiglobal.zendesk.com/hc/zh-cn/articles/360000076392-%E4%BA%A4%E6%98%93%E9%99%90%E9%A2%9D
     获取
-    由于交易对添加的很慢，所以手动处理就行
+    由于交易对更新频率小，所以手动维护就行
     """
     min_qty_dict = {
         'btcusdt': decimal.Decimal('0.001'),
@@ -70,6 +70,10 @@ def get_min_qty(symbol: str) -> decimal.Decimal:
 
 
 def get_num_from_precision(precision: int) -> decimal.Decimal:
+    """
+    :param precision: 精度，必须大于等于 0
+    :return: 返回 precision 对应的小数
+    """
     if precision < 0:
         raise ValueError('precision 不能小于 0')
     return decimal.Decimal('1e{}'.format(-precision))
@@ -146,13 +150,9 @@ def round_to_template(num: decimal.Decimal, example: decimal.Decimal) -> decimal
     example = str(example)
     if '1' not in example:
         raise ValueError('example 必须包含 1')
-    index = example.index('1')
-    if index == 0:
-        ndigits = 0
-    else:
-        # 减一的原因是存在小数点
-        ndigits = index - 1
-    return round(num, ndigits)
+    # 去除小数点
+    example = example.replace('.', '')
+    return round(num, example.index('1'))
 
 
 def format_quantity(quantity, step_size):
@@ -185,6 +185,7 @@ def generate_orders(symbol: Symbol, quantity, start_dt, end_dt, strategy: Strate
             order_quantity = min_quantity + remaining_quantity
         else:
             order_quantity = min_quantity
+        # 根据 API 要求调整数字精度
         order_quantity = round_to_template(order_quantity, symbol.min_qty)
         order = {
             'time': dt,
@@ -202,11 +203,6 @@ def place_order(order: Order):
     """下单"""
     strategy = order.strategy
     price = get_price(strategy.symbol, strategy.side)
-    min_quantity = get_min_quantity(strategy.symbol)
-    quantity = order.quantity
-    # 因为订单是预估的，所以实际下单时可能会低于最小数量
-    if quantity < min_quantity:
-        quantity = min_quantity
 
     # 调整精度并转换为字符串以符合火币要求
     quantity = str(round_to_template(order.quantity, strategy.symbol.min_qty))
