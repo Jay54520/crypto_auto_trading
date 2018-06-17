@@ -235,3 +235,24 @@ def place_order(order: Order):
             order.message = str(result)[:255]
     finally:
         order.save()
+
+
+def gain_loss(symbol: Symbol):
+    """symbol 从开始到现在的持仓盈亏"""
+    sold_usdt = decimal.Decimal(0)
+    cost_usdt = decimal.Decimal(0)
+    holding_asset = decimal.Decimal(0)
+
+    for order in Order.objects.filter(status=constants.SUBMITTED).iterator():
+        if order.strategy.side == constants.BUY:
+            cost_usdt += order.price * order.quantity
+            holding_asset += order.quantity
+        else:
+            sold_usdt += order.price * order.quantity
+            holding_asset -= order.quantity
+
+    current_sold_price = get_price(symbol, constants.SELL)
+    holding_asset_to_usdt = sold_usdt + current_sold_price * holding_asset
+    percentage = '{:.2%}'.format((holding_asset_to_usdt / cost_usdt) - 1)
+
+    return round(cost_usdt, 2), round(holding_asset_to_usdt, 2), percentage

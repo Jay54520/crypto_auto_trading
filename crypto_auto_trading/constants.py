@@ -9,3 +9,4 @@ SIDE_CHOICES = (
 TYPE_LIMIT = 'LIMIT'
 #  Good-Til-Canceled。一直挂单直到成交或取消
 GTC = 'GTC'
+SUBMITTED = 'submitted'
